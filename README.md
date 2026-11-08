@@ -1,135 +1,154 @@
-# SmartEstate AI - AI-Powered Real Estate Platform
+# SmartEstate AI
 
-An AI-powered real estate platform (final-year CSE-AIML project).
+**An AI-powered real estate platform for buyers, agents and admins: search listings, verify property documents, and get data-driven insight on every property.**
 
----
+Final-year B.E. (CSE - AI/ML) project, built entirely on free-tier services.
 
-## Part 3: Document Intelligence (OCR Extraction + Document Verification)
-
-Part 3 implements automated OCR text extraction and fuzzy document verification against property records.
-
-### Features Built
-- **OCR Text Extraction**: Extract raw text from uploaded property documents (sale deeds, tax receipts, ownership documents, registration documents) in image formats (`.png`, `.jpg`) or scanned PDFs using `pytesseract` and `pdf2image` with Pillow preprocessing (grayscale, contrast boost, adaptive sharpening).
-- **Structured 7-Field Extraction**: Parses raw OCR text using regular expressions and NLP heuristics to extract:
-  1. `owner_name`
-  2. `property_address`
-  3. `property_id`
-  4. `survey_number`
-  5. `area`
-  6. `document_date`
-  7. `registration_number`
-- **Fuzzy Document Verification**: Compares extracted document fields against listed property details using `rapidfuzz` fuzzy matching logic. Generates field-level match checklist results (`match`, `mismatch`, `not_found`), overall verification status (`verified`, `mismatch`, `pending`), and the mandatory legal disclaimer.
-- **Mandatory Legal Disclaimer**: Every verification response includes:
-  > *"This AI verification is for preliminary information checking and does not replace professional or legal verification."*
+<!-- Add screenshots here once they are saved in docs/screenshots/, for example:
+![Landing page](docs/screenshots/landing.png)
+-->
 
 ---
 
-## Folder Structure (Part 3 Files)
+## Features
+
+**For buyers**
+- Property search with filters, plus an interactive map view (Leaflet)
+- Side-by-side property comparison and a favorites list
+- A property detail page with tabs for AI analysis, price forecast, location intelligence, sustainability estimate and an EMI calculator
+- Contact the listing agent with an inquiry
+- AI chat assistant that answers questions about listings (RAG)
+
+**For agents**
+- Create and edit listings, with photo uploads
+- Upload property documents for automated verification and a trust score
+
+**For admins**
+- Admin dashboard and listing review, with flagged listings surfaced for manual checks
+
+**AI and ML**
+- Price prediction model trained on a Bengaluru property dataset
+- Fraud scoring and duplicate-listing detection
+- RAG chatbot: sentence-transformers embeddings, ChromaDB vector store, Groq LLM
+- Content-based property recommendations
+- Composite property analysis score
+- Price forecasting and sustainability (solar / CO2) estimates
+- Location intelligence from OpenStreetMap (Overpass API), with a labelled fallback when the API is unavailable
+- Document Intelligence: OCR extraction and fuzzy verification of property documents
+- Trust suite: cross-checks extracted document details, computes a trust score and applies review rules
+
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS v4, React Router, Axios, Leaflet / react-leaflet, Recharts, lucide-react |
+| Backend | Python, FastAPI, SQLAlchemy 2, Alembic, Pydantic v2 |
+| Database | PostgreSQL |
+| Auth | JWT (python-jose), bcrypt / passlib, Authlib (Google OAuth) |
+| AI / ML | scikit-learn, XGBoost, sentence-transformers, ChromaDB, Groq API, rapidfuzz |
+| Document processing | pytesseract, pdf2image, Pillow, pypdf |
+| Geo | geopy, OpenStreetMap Overpass API |
+
+---
+
+## Project Structure
 
 ```
-smartestate-ai/
-├── backend/
-│   ├── app/
-│   │   ├── ocr/
-│   │   │   ├── __init__.py
-│   │   │   ├── preprocess.py        # Image cleanup (grayscale, contrast, deskew)
-│   │   │   ├── extract_text.py      # Dual PDF & Image OCR extraction
-│   │   │   ├── field_extractor.py   # Extracts all 7 structured fields via regex & NLP
-│   │   │   └── document_verifier.py # Rapidfuzz fuzzy matching & report generator
-│   │   ├── schemas/
-│   │   │   └── document_schemas.py  # Pydantic schemas matching exact API contract
-│   │   ├── routers/
-│   │   │   └── documents.py         # REST endpoints: upload, verify, get document
-│   │   └── main.py                  # Registered documents router under /api/v1
-│   └── requirements.txt             # Updated with OCR & NLP dependencies
-└── tests/
-    ├── sample_docs/
-    │   ├── sample_sale_deed_clean.txt    # Clean synthetic test deed (matching case)
-    │   └── sample_sale_deed_mismatch.txt # Modified synthetic test deed (mismatch case)
-    └── test_ocr_pipeline.py              # Unit & integration automated test suite
+smart-estate-ai/
+|-- backend/
+|   |-- app/
+|   |   |-- routers/        # REST endpoints (properties, auth, chat, documents, ...)
+|   |   |-- services/       # Forecasting, fraud detection, sustainability, geo, AI advisor
+|   |   |-- rag/            # Chatbot, embeddings, vector store
+|   |   |-- ocr/            # OCR extraction and document verification
+|   |   |-- trust_suite/    # Document trust scoring and review rules
+|   |   |-- models/         # SQLAlchemy models
+|   |   `-- schemas/        # Pydantic schemas
+|   |-- alembic/            # Database migrations
+|   |-- ml/                 # Price model, fraud scorer, duplicate detector
+|   `-- requirements.txt
+|-- frontend/
+|   `-- src/                # React app (pages, components, api client)
+`-- tests/                  # OCR pipeline tests and sample documents
 ```
 
 ---
 
-## Document Intelligence API Contract
+## Getting Started
 
-All routes are prefixed under `/api/v1/documents`.
+### Prerequisites
 
-### 1. Upload Property Document
-- **Endpoint**: `POST /api/v1/documents/upload`
-- **Request**: Multipart Form Data
-  - `property_id`: string
-  - `doc_type`: string (`sale_deed` | `tax_receipt` | `ownership_doc` | `registration_doc`)
-  - `file`: UploadFile (PDF or Image)
-- **Response**:
-```json
-{
-  "document_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "file_url": "/static/documents/3fa85f64..._sale_deed.pdf"
-}
-```
+- Python 3.11 or newer
+- Node.js (LTS)
+- A PostgreSQL database (a free Neon database works well)
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) and [Poppler](https://poppler.freedesktop.org/) installed and on your PATH (needed for document OCR)
+- A free [Groq](https://console.groq.com/) API key for the AI chat assistant
 
-### 2. Verify Document Fields
-- **Endpoint**: `POST /api/v1/documents/{document_id}/verify`
-- **Response**:
-```json
-{
-  "extracted_fields": {
-    "owner_name": "Rajesh Kumar",
-    "property_address": "Plot No. 42, Sunrise Enclave, MG Road, Bengaluru",
-    "property_id": "PROP-1002",
-    "survey_number": "124/2A",
-    "area": "1200 sq ft",
-    "document_date": "15/08/2023",
-    "registration_number": "REG/2023/8892"
-  },
-  "match_results": [
-    { "field": "owner_name", "status": "match" },
-    { "field": "property_address", "status": "match" },
-    { "field": "property_id", "status": "match" },
-    { "field": "survey_number", "status": "match" },
-    { "field": "area", "status": "match" },
-    { "field": "document_date", "status": "match" },
-    { "field": "registration_number", "status": "match" }
-  ],
-  "overall_status": "verified",
-  "disclaimer": "This AI verification is for preliminary information checking and does not replace professional or legal verification."
-}
-```
-
-### 3. Fetch Document Status
-- **Endpoint**: `GET /api/v1/documents/{document_id}`
-- **Response**: Returns stored document metadata and verification results.
-
----
-
-## Running Automated Tests
-
-Run the standalone test suite covering field extraction, matching verification, mismatch detection, and full API endpoint interaction:
+### 1. Clone the repository
 
 ```bash
-python tests/test_ocr_pipeline.py
+git clone https://github.com/kavyaab2005/smart-estate-ai.git
+cd smart-estate-ai
 ```
 
-Expected Output:
-```text
-Ran 4 tests in 0.187s
-
-OK
-```
-
----
-
-## Setup & Execution Instructions
+### 2. Backend
 
 ```bash
-# Backend Setup
 cd backend
-pip install -r requirements.txt
+python -m venv venv
 
-# Start Backend Server
+# Windows (PowerShell)
+venv\Scripts\activate
+# macOS / Linux
+# source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Create your environment file and fill in the values:
+
+```bash
+# Windows
+copy .env.example .env
+# macOS / Linux
+# cp .env.example .env
+```
+
+Never commit your real `.env` file. It is already listed in `.gitignore`.
+
+Create the database tables and start the server:
+
+```bash
+alembic upgrade head
+python seed.py          # optional: loads sample properties
 uvicorn app.main:app --reload
 ```
 
-- Base API URL: `http://127.0.0.1:8000/api/v1`
-- Interactive Swagger Documentation: `http://127.0.0.1:8000/docs`
+To build the chatbot's vector index from the properties in your database:
+
+```bash
+python -m app.rag.embed_properties
+```
+
+- Backend: `http://127.0.0.1:8000`
+- Interactive API docs (Swagger): `http://127.0.0.1:8000/docs`
+
+### 3. Frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the address Vite prints (usually `http://localhost:5173`).
+
+---
+
+## Author
+
+Built by **Kavya B** ([@kavyaab2005](https://github.com/kavyaab2005)).
